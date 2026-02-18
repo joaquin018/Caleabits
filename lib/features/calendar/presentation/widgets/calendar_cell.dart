@@ -31,7 +31,7 @@ class CalendarCell extends StatelessWidget {
       child: day == null
           ? const SizedBox.shrink()
           : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
                   padding: const EdgeInsets.all(6),

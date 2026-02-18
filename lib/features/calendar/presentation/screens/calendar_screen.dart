@@ -97,17 +97,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildWeekdayHeaders() {
     return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          WeekdayLabel('L'),
-          WeekdayLabel('M'),
-          WeekdayLabel('M'),
-          WeekdayLabel('J'),
-          WeekdayLabel('V'),
-          WeekdayLabel('S'),
-          WeekdayLabel('D'),
+          Expanded(child: WeekdayLabel('L')),
+          Expanded(child: WeekdayLabel('M')),
+          Expanded(child: WeekdayLabel('M')),
+          Expanded(child: WeekdayLabel('J')),
+          Expanded(child: WeekdayLabel('V')),
+          Expanded(child: WeekdayLabel('S')),
+          Expanded(child: WeekdayLabel('D')),
         ],
       ),
     );
