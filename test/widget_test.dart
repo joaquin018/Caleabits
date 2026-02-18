@@ -2,12 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:habits/main.dart';
 
 void main() {
-  testWidgets('Hello World smoke test', (WidgetTester tester) async {
+  testWidgets('Smoke test for Caleabits', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const HabitsApp());
+    await tester.pumpWidget(const CaleabitsApp());
 
-    // Verify that our "Hello World" text is present.
-    expect(find.text('Hello World'), findsOneWidget);
-    expect(find.text('Welcome to Habits'), findsOneWidget);
+    // Verify that some static text is present (e.g., today's month could be tricky,
+    // but the 'Hoy' button is stable).
+    expect(find.text('Hoy'), findsOneWidget);
   });
 }
