@@ -13,8 +13,8 @@ class WeekdayLabel extends StatelessWidget {
       child: Text(
         label,
         style: const TextStyle(
-          color: Colors.white70,
-          fontSize: 12,
+          color: Colors.white,
+          fontSize: 13,
           fontWeight: FontWeight.bold,
         ),
       ),

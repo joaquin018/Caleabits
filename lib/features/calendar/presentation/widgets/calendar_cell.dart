@@ -43,10 +43,10 @@ class CalendarCell extends StatelessWidget {
                       : null,
                   child: Text(
                     '$day',
-                    style: TextStyle(
-                      color: isToday ? Colors.white : Colors.white,
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontSize: 18,
-                      fontWeight: isToday ? FontWeight.bold : FontWeight.w400,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),

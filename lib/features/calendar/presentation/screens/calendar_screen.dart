@@ -104,7 +104,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           WeekdayLabel('L'),
           WeekdayLabel('M'),
           WeekdayLabel('M'),
-          WeekdayLabel('X'),
           WeekdayLabel('J'),
           WeekdayLabel('V'),
           WeekdayLabel('S'),
