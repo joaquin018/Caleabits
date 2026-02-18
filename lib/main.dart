@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'core/theme/app_theme.dart';
-import 'features/calendar/presentation/screens/calendar_screen.dart';
+import 'features/home/presentation/screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +18,7 @@ class CaleabitsApp extends StatelessWidget {
       title: 'Caleabits',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: const CalendarScreen(),
+      home: const MainHomeScreen(),
     );
   }
 }
