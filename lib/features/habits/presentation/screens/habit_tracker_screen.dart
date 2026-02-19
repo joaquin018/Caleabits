@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:habits/core/database/app_database.dart';
+import 'package:drift/drift.dart' as drift;
 
 enum HabitStatus { none, success, failure }
 
 class HabitModel {
+  String? id;
   String name;
   String detail;
   final List<HabitStatus> statuses;
 
   HabitModel({
+    this.id,
     required this.name,
     required this.detail,
     required this.statuses,
@@ -24,11 +28,12 @@ class HabitTrackerScreen extends StatefulWidget {
 
 class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
   DateTime _focusedDay = DateTime.now();
-  late List<HabitModel> _habits;
-  late List<TextEditingController> _nameControllers;
-  late List<TextEditingController> _detailControllers;
+  List<HabitModel> _habits = [];
+  List<TextEditingController> _nameControllers = [];
+  List<TextEditingController> _detailControllers = [];
   bool _isMenuExpanded = false;
   bool _isDeleteMode = false;
+  bool _isLoading = true;
 
   // Column width constants (base settings)
   final double _nameWidth = 150.0;
@@ -40,7 +45,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeHabits(firstTime: true);
+    _loadHabits();
   }
 
   @override
@@ -50,11 +55,10 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
     super.dispose();
   }
 
-  void _initializeHabits({bool firstTime = false}) {
-    if (!firstTime) {
-      for (var c in _nameControllers) c.dispose();
-      for (var c in _detailControllers) c.dispose();
-    }
+  Future<void> _loadHabits() async {
+    setState(() => _isLoading = true);
+
+    final dbHabits = await AppDatabase.instance.getAllHabits();
 
     final int daysInMonth = DateTime(
       _focusedDay.year,
@@ -62,82 +66,70 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
       0,
     ).day;
 
-    // Mock data
-    _habits = [
-      HabitModel(
-        name: 'Ejercicio',
-        detail: 'Flexiones, Plancha, Sentadilla Dividida',
-        statuses: List.generate(
-          daysInMonth,
-          (index) => index < 10
-              ? (index % 3 == 0 ? HabitStatus.failure : HabitStatus.success)
-              : HabitStatus.none,
-        ),
-      ),
-      HabitModel(
-        name: 'Anki',
-        detail: '10 / 20 flashcards por día',
-        statuses: List.generate(
-          daysInMonth,
-          (index) => index < 15
-              ? (index % 5 == 0 ? HabitStatus.failure : HabitStatus.success)
-              : HabitStatus.none,
-        ),
-      ),
-      HabitModel(
-        name: 'Lectura',
-        detail: '1 Página de un libro / lectura extensa',
-        statuses: List.generate(
-          daysInMonth,
-          (index) => index < 12
-              ? (index % 4 == 0 ? HabitStatus.failure : HabitStatus.success)
-              : HabitStatus.none,
-        ),
-      ),
-      HabitModel(
-        name: 'Aimlab',
-        detail: 'Voltaic Valorant Benchmark',
-        statuses: List.generate(
-          daysInMonth,
-          (index) => index < 20
-              ? (index % 6 == 0 ? HabitStatus.failure : HabitStatus.success)
-              : HabitStatus.none,
-        ),
-      ),
-    ];
+    final List<HabitModel> loadedHabits = [];
 
-    _nameControllers = _habits
-        .map((h) => TextEditingController(text: h.name))
-        .toList();
-    _detailControllers = _habits
-        .map((h) => TextEditingController(text: h.detail))
-        .toList();
+    for (final dbHabit in dbHabits) {
+      final entries = await AppDatabase.instance.getEntriesForHabit(dbHabit.id);
+
+      final statuses = List.generate(daysInMonth, (index) {
+        final day = index + 1;
+        final entry = entries.cast<HabitEntry?>().firstWhere(
+          (e) =>
+              e?.date.year == _focusedDay.year &&
+              e?.date.month == _focusedDay.month &&
+              e?.date.day == day,
+          orElse: () => null,
+        );
+
+        if (entry == null) return HabitStatus.none;
+        return entry.status == 1 ? HabitStatus.success : HabitStatus.failure;
+      });
+
+      loadedHabits.add(
+        HabitModel(
+          id: dbHabit.id,
+          name: dbHabit.name,
+          detail: dbHabit.detail ?? '',
+          statuses: statuses,
+        ),
+      );
+    }
+
+    // If no habits and first load, maybe add default ones?
+    // The user didn't ask for it, so I'll leave it empty.
+
+    if (mounted) {
+      setState(() {
+        for (var c in _nameControllers) c.dispose();
+        for (var c in _detailControllers) c.dispose();
+
+        _habits = loadedHabits;
+        _nameControllers = _habits
+            .map((h) => TextEditingController(text: h.name))
+            .toList();
+        _detailControllers = _habits
+            .map((h) => TextEditingController(text: h.detail))
+            .toList();
+        _isLoading = false;
+      });
+    }
   }
 
   void _changeMonth(int offset) {
     setState(() {
       _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + offset);
-      _initializeHabits();
     });
+    _loadHabits();
   }
 
-  void _addHabit() {
-    final int daysInMonth = DateTime(
-      _focusedDay.year,
-      _focusedDay.month + 1,
-      0,
-    ).day;
-    setState(() {
-      final h = HabitModel(
-        name: '',
-        detail: '',
-        statuses: List.generate(daysInMonth, (index) => HabitStatus.none),
-      );
-      _habits.add(h);
-      _nameControllers.add(TextEditingController(text: ''));
-      _detailControllers.add(TextEditingController(text: ''));
-      _isMenuExpanded = false;
-    });
+  void _addHabit() async {
+    await AppDatabase.instance.upsertHabit(
+      const HabitsCompanion(
+        name: drift.Value('NUEVO HÁBITO'),
+        detail: drift.Value(''),
+      ),
+    );
+    _loadHabits();
   }
 
   void _toggleDeleteMode() {
@@ -147,30 +139,59 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
     });
   }
 
-  void _deleteHabit(int index) {
-    setState(() {
-      _habits.removeAt(index);
-      _nameControllers[index].dispose();
-      _nameControllers.removeAt(index);
-      _detailControllers[index].dispose();
-      _detailControllers.removeAt(index);
-      if (_habits.isEmpty) _isDeleteMode = false;
-    });
+  void _deleteHabit(int index) async {
+    final habit = _habits[index];
+    if (habit.id != null) {
+      await AppDatabase.instance.softDeleteHabit(habit.id!);
+      _loadHabits();
+    }
   }
 
-  void _onCellClick(int habitIndex, int dayIndex, bool isLeftClick) {
+  void _onCellClick(int habitIndex, int dayIndex, bool isLeftClick) async {
+    final habit = _habits[habitIndex];
+    if (habit.id == null) return;
+
+    final statuses = habit.statuses;
+    HabitStatus newStatus;
+    if (isLeftClick) {
+      newStatus = statuses[dayIndex] == HabitStatus.failure
+          ? HabitStatus.none
+          : HabitStatus.failure;
+    } else {
+      newStatus = statuses[dayIndex] == HabitStatus.success
+          ? HabitStatus.none
+          : HabitStatus.success;
+    }
+
     setState(() {
-      final statuses = _habits[habitIndex].statuses;
-      if (isLeftClick) {
-        statuses[dayIndex] = statuses[dayIndex] == HabitStatus.failure
-            ? HabitStatus.none
-            : HabitStatus.failure;
-      } else {
-        statuses[dayIndex] = statuses[dayIndex] == HabitStatus.success
-            ? HabitStatus.none
-            : HabitStatus.success;
-      }
+      statuses[dayIndex] = newStatus;
     });
+
+    final date = DateTime(_focusedDay.year, _focusedDay.month, dayIndex + 1);
+    int statusInt = 0;
+    if (newStatus == HabitStatus.success) statusInt = 1;
+    if (newStatus == HabitStatus.failure) statusInt = 2;
+
+    await AppDatabase.instance.upsertEntry(
+      HabitEntriesCompanion(
+        habitId: drift.Value(habit.id!),
+        date: drift.Value(date),
+        status: drift.Value(statusInt),
+      ),
+    );
+  }
+
+  void _updateHabit(int habitIndex) async {
+    final habit = _habits[habitIndex];
+    if (habit.id == null) return;
+
+    await AppDatabase.instance.upsertHabit(
+      HabitsCompanion(
+        id: drift.Value(habit.id!),
+        name: drift.Value(_nameControllers[habitIndex].text),
+        detail: drift.Value(_detailControllers[habitIndex].text),
+      ),
+    );
   }
 
   @override
@@ -206,139 +227,146 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Colors.pinkAccent),
+            )
+          : Stack(
               children: [
-                // Month Header with Navigation
                 Padding(
-                  padding: const EdgeInsets.only(left: 8.0, bottom: 20),
-                  child: Row(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        onPressed: () => _changeMonth(-1),
-                        icon: const Icon(
-                          Icons.chevron_left,
-                          color: Colors.redAccent,
-                          size: 32,
+                      // Month Header with Navigation
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0, bottom: 20),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              onPressed: () => _changeMonth(-1),
+                              icon: const Icon(
+                                Icons.chevron_left,
+                                color: Colors.redAccent,
+                                size: 32,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                            SizedBox(
+                              width:
+                                  320, // Fixed width to prevent buttons from moving
+                              child: Center(
+                                child: Text(
+                                  '$monthNum - $monthName',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => _changeMonth(1),
+                              icon: const Icon(
+                                Icons.chevron_right,
+                                color: Colors.redAccent,
+                                size: 32,
+                              ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                            if (_isDeleteMode) ...[
+                              const SizedBox(width: 20),
+                              const Text(
+                                'MODO ELIMINAR ACTIVO',
+                                style: TextStyle(
+                                  color: Colors.redAccent,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () =>
+                                    setState(() => _isDeleteMode = false),
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Colors.white54,
+                                  size: 18,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
                       ),
-                      SizedBox(
-                        width:
-                            320, // Fixed width to prevent buttons from moving
-                        child: Center(
-                          child: Text(
-                            '$monthNum - $monthName',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
+
+                      // Scrollable Table
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: totalWidth,
+                            child: Column(
+                              children: [
+                                _buildTableHeader(
+                                  daysInMonth,
+                                  currentDetailWidth,
+                                ),
+                                Expanded(
+                                  child: ListView.builder(
+                                    itemCount: _habits.length,
+                                    itemBuilder: (context, index) {
+                                      return _buildHabitRow(
+                                        index,
+                                        daysInMonth,
+                                        currentDetailWidth,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => _changeMonth(1),
-                        icon: const Icon(
-                          Icons.chevron_right,
-                          color: Colors.redAccent,
-                          size: 32,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
-                      if (_isDeleteMode) ...[
-                        const SizedBox(width: 20),
-                        const Text(
-                          'MODO ELIMINAR ACTIVO',
-                          style: TextStyle(
-                            color: Colors.redAccent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () =>
-                              setState(() => _isDeleteMode = false),
-                          icon: const Icon(
-                            Icons.close,
-                            color: Colors.white54,
-                            size: 18,
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
 
-                // Scrollable Table
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SizedBox(
-                      width: totalWidth,
-                      child: Column(
-                        children: [
-                          _buildTableHeader(daysInMonth, currentDetailWidth),
-                          Expanded(
-                            child: ListView.builder(
-                              itemCount: _habits.length,
-                              itemBuilder: (context, index) {
-                                return _buildHabitRow(
-                                  index,
-                                  daysInMonth,
-                                  currentDetailWidth,
-                                );
-                              },
-                            ),
-                          ),
-                        ],
+                Positioned(
+                  bottom: 30,
+                  right: 30,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isMenuExpanded) ...[
+                        _buildMenuButton(
+                          icon: Icons.add,
+                          color: Colors.greenAccent,
+                          onTap: _addHabit,
+                        ),
+                        const SizedBox(width: 12),
+                        _buildMenuButton(
+                          icon: Icons.remove,
+                          color: Colors.redAccent,
+                          onTap: _toggleDeleteMode,
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      _buildMenuButton(
+                        icon: _isMenuExpanded
+                            ? Icons.chevron_right
+                            : Icons.chevron_left,
+                        color: Colors.pinkAccent,
+                        onTap: () =>
+                            setState(() => _isMenuExpanded = !_isMenuExpanded),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-
-          Positioned(
-            bottom: 30,
-            right: 30,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_isMenuExpanded) ...[
-                  _buildMenuButton(
-                    icon: Icons.add,
-                    color: Colors.greenAccent,
-                    onTap: _addHabit,
-                  ),
-                  const SizedBox(width: 12),
-                  _buildMenuButton(
-                    icon: Icons.remove,
-                    color: Colors.redAccent,
-                    onTap: _toggleDeleteMode,
-                  ),
-                  const SizedBox(width: 12),
-                ],
-                _buildMenuButton(
-                  icon: _isMenuExpanded
-                      ? Icons.chevron_right
-                      : Icons.chevron_left,
-                  color: Colors.pinkAccent,
-                  onTap: () =>
-                      setState(() => _isMenuExpanded = !_isMenuExpanded),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -479,7 +507,10 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                 Expanded(
                   child: TextField(
                     controller: _nameControllers[habitIndex],
-                    onChanged: (val) => habit.name = val,
+                    onChanged: (val) {
+                      habit.name = val;
+                      _updateHabit(habitIndex);
+                    },
                     enabled: !_isDeleteMode,
                     style: TextStyle(
                       color: _isDeleteMode ? Colors.redAccent : Colors.white,
@@ -549,7 +580,10 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
               padding: const EdgeInsets.only(left: 16),
               child: TextField(
                 controller: _detailControllers[habitIndex],
-                onChanged: (val) => habit.detail = val,
+                onChanged: (val) {
+                  habit.detail = val;
+                  _updateHabit(habitIndex);
+                },
                 enabled: !_isDeleteMode,
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
                 decoration: const InputDecoration(
