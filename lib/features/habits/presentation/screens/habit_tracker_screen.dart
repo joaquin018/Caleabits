@@ -228,16 +228,20 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '$monthNum - $monthName',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
+                      SizedBox(
+                        width:
+                            320, // Fixed width to prevent buttons from moving
+                        child: Center(
+                          child: Text(
+                            '$monthNum - $monthName',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 8),
                       IconButton(
                         onPressed: () => _changeMonth(1),
                         icon: const Icon(
