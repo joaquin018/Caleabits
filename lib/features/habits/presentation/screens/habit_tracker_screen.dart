@@ -25,10 +25,11 @@ class HabitTrackerScreen extends StatefulWidget {
 class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
   DateTime _focusedDay = DateTime.now();
   late List<HabitModel> _habits;
+  late List<TextEditingController> _nameControllers;
+  late List<TextEditingController> _detailControllers;
   bool _isMenuExpanded = false;
   bool _isDeleteMode = false;
 
-  // Column width constants
   final double _nameWidth = 150.0;
   final double _dayWidth = 22.0;
   final double _statWidth = 40.0;
@@ -38,10 +39,22 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeHabits();
+    _initializeHabits(firstTime: true);
   }
 
-  void _initializeHabits() {
+  @override
+  void dispose() {
+    for (var c in _nameControllers) c.dispose();
+    for (var c in _detailControllers) c.dispose();
+    super.dispose();
+  }
+
+  void _initializeHabits({bool firstTime = false}) {
+    if (!firstTime) {
+      for (var c in _nameControllers) c.dispose();
+      for (var c in _detailControllers) c.dispose();
+    }
+
     final int daysInMonth = DateTime(
       _focusedDay.year,
       _focusedDay.month + 1,
@@ -69,7 +82,34 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
               : HabitStatus.none,
         ),
       ),
+      HabitModel(
+        name: 'Lectura',
+        detail: '1 Página de un libro / lectura extensa',
+        statuses: List.generate(
+          daysInMonth,
+          (index) => index < 12
+              ? (index % 4 == 0 ? HabitStatus.failure : HabitStatus.success)
+              : HabitStatus.none,
+        ),
+      ),
+      HabitModel(
+        name: 'Aimlab',
+        detail: 'Voltaic Valorant Benchmark',
+        statuses: List.generate(
+          daysInMonth,
+          (index) => index < 20
+              ? (index % 6 == 0 ? HabitStatus.failure : HabitStatus.success)
+              : HabitStatus.none,
+        ),
+      ),
     ];
+
+    _nameControllers = _habits
+        .map((h) => TextEditingController(text: h.name))
+        .toList();
+    _detailControllers = _habits
+        .map((h) => TextEditingController(text: h.detail))
+        .toList();
   }
 
   void _changeMonth(int offset) {
@@ -86,13 +126,14 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
       0,
     ).day;
     setState(() {
-      _habits.add(
-        HabitModel(
-          name: 'Nuevo Hábito',
-          detail: 'Escribe aquí el detalle...',
-          statuses: List.generate(daysInMonth, (index) => HabitStatus.none),
-        ),
+      final h = HabitModel(
+        name: '',
+        detail: '',
+        statuses: List.generate(daysInMonth, (index) => HabitStatus.none),
       );
+      _habits.add(h);
+      _nameControllers.add(TextEditingController(text: ''));
+      _detailControllers.add(TextEditingController(text: ''));
       _isMenuExpanded = false;
     });
   }
@@ -107,6 +148,10 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
   void _deleteHabit(int index) {
     setState(() {
       _habits.removeAt(index);
+      _nameControllers[index].dispose();
+      _nameControllers.removeAt(index);
+      _detailControllers[index].dispose();
+      _detailControllers.removeAt(index);
       if (_habits.isEmpty) _isDeleteMode = false;
     });
   }
@@ -155,7 +200,6 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Month Header with Navigation
                 Padding(
                   padding: const EdgeInsets.only(left: 8.0, bottom: 20),
                   child: Row(
@@ -214,7 +258,6 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                   ),
                 ),
 
-                // Scrollable Table
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -240,7 +283,6 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
             ),
           ),
 
-          // Floating Action Menu
           Positioned(
             bottom: 30,
             right: 30,
@@ -292,13 +334,6 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
           color: Colors.white.withValues(alpha: 0.1),
           shape: BoxShape.circle,
           border: Border.all(color: color.withValues(alpha: 0.5), width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.2),
-              blurRadius: 10,
-              spreadRadius: 2,
-            ),
-          ],
         ),
         child: Icon(icon, color: color, size: 28),
       ),
@@ -313,6 +348,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
       ),
       child: Row(
         children: [
+          const SizedBox(width: 2), // Guard for border
           SizedBox(
             width: _nameWidth,
             child: const Text(
@@ -398,95 +434,111 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
         ),
         color: _isDeleteMode ? Colors.redAccent.withValues(alpha: 0.05) : null,
       ),
-      child: InkWell(
-        onTap: _isDeleteMode ? () => _deleteHabit(habitIndex) : null,
-        child: Row(
-          children: [
-            SizedBox(
-              width: _nameWidth,
-              child: Row(
-                children: [
-                  if (_isDeleteMode)
-                    const Icon(
+      child: Row(
+        children: [
+          SizedBox(
+            width: _nameWidth,
+            child: Row(
+              children: [
+                if (_isDeleteMode) ...[
+                  IconButton(
+                    onPressed: () => _deleteHabit(habitIndex),
+                    icon: const Icon(
                       Icons.delete_forever,
                       color: Colors.redAccent,
-                      size: 16,
+                      size: 18,
                     ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
                   const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      habit.name,
-                      style: TextStyle(
-                        color: _isDeleteMode ? Colors.redAccent : Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
                 ],
-              ),
-            ),
-            ...List.generate(days, (dayIndex) {
-              if (dayIndex >= habit.statuses.length)
-                return const SizedBox.shrink();
-
-              final status = habit.statuses[dayIndex];
-              Color? bgColor;
-              IconData? icon;
-              Color? iconColor;
-
-              if (status == HabitStatus.success) {
-                bgColor = Colors.green.withValues(alpha: 0.2);
-                icon = Icons.check;
-                iconColor = Colors.greenAccent;
-              } else if (status == HabitStatus.failure) {
-                bgColor = Colors.red.withValues(alpha: 0.2);
-                icon = Icons.close;
-                iconColor = Colors.redAccent;
-              }
-
-              return GestureDetector(
-                onTap: _isDeleteMode
-                    ? null
-                    : () => _onCellClick(habitIndex, dayIndex, true),
-                onSecondaryTap: _isDeleteMode
-                    ? null
-                    : () => _onCellClick(habitIndex, dayIndex, false),
-                child: Container(
-                  width: _dayWidth,
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    border: const Border(
-                      left: BorderSide(color: Colors.white10, width: 0.5),
+                Expanded(
+                  child: TextField(
+                    controller: _nameControllers[habitIndex],
+                    onChanged: (val) => habit.name = val,
+                    enabled: !_isDeleteMode,
+                    style: TextStyle(
+                      color: _isDeleteMode ? Colors.redAccent : Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Hábito...',
+                      hintStyle: TextStyle(color: Colors.white24, fontSize: 14),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
                     ),
                   ),
-                  child: icon != null
-                      ? Center(child: Icon(icon, color: iconColor, size: 12))
-                      : null,
                 ),
-              );
-            }),
-            _buildStatValue(success.toString(), _statWidth, Colors.greenAccent),
-            _buildStatValue(failure.toString(), _statWidth, Colors.redAccent),
-            _buildStatValue(
-              '${percentage.toStringAsFixed(1)}%',
-              _pctWidth,
-              Colors.white,
+              ],
             ),
-            SizedBox(
-              width: _detailWidth,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: Text(
-                  habit.detail,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  overflow: TextOverflow.ellipsis,
+          ),
+          ...List.generate(days, (dayIndex) {
+            if (dayIndex >= habit.statuses.length)
+              return const SizedBox.shrink();
+            final status = habit.statuses[dayIndex];
+            Color? bgColor;
+            IconData? icon;
+            Color? iconColor;
+
+            if (status == HabitStatus.success) {
+              bgColor = Colors.green.withValues(alpha: 0.2);
+              icon = Icons.check;
+              iconColor = Colors.greenAccent;
+            } else if (status == HabitStatus.failure) {
+              bgColor = Colors.red.withValues(alpha: 0.2);
+              icon = Icons.close;
+              iconColor = Colors.redAccent;
+            }
+
+            return GestureDetector(
+              onTap: _isDeleteMode
+                  ? null
+                  : () => _onCellClick(habitIndex, dayIndex, true),
+              onSecondaryTap: _isDeleteMode
+                  ? null
+                  : () => _onCellClick(habitIndex, dayIndex, false),
+              child: Container(
+                width: _dayWidth,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  border: const Border(
+                    left: BorderSide(color: Colors.white10, width: 0.5),
+                  ),
+                ),
+                child: icon != null
+                    ? Center(child: Icon(icon, color: iconColor, size: 12))
+                    : null,
+              ),
+            );
+          }),
+          _buildStatValue(success.toString(), _statWidth, Colors.greenAccent),
+          _buildStatValue(failure.toString(), _statWidth, Colors.redAccent),
+          _buildStatValue(
+            '${percentage.toStringAsFixed(1)}%',
+            _pctWidth,
+            Colors.white,
+          ),
+          SizedBox(
+            width: _detailWidth,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: TextField(
+                controller: _detailControllers[habitIndex],
+                onChanged: (val) => habit.detail = val,
+                enabled: !_isDeleteMode,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                decoration: InputDecoration(
+                  hintText: 'Detalle...',
+                  hintStyle: TextStyle(color: Colors.white24, fontSize: 12),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
