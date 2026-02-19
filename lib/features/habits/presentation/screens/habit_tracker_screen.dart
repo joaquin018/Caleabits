@@ -30,11 +30,12 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
   bool _isMenuExpanded = false;
   bool _isDeleteMode = false;
 
+  // Column width constants (base settings)
   final double _nameWidth = 150.0;
   final double _dayWidth = 22.0;
   final double _statWidth = 40.0;
   final double _pctWidth = 60.0;
-  final double _detailWidth = 300.0;
+  final double _minDetailWidth = 300.0;
 
   @override
   void initState() {
@@ -61,6 +62,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
       0,
     ).day;
 
+    // Mock data
     _habits = [
       HabitModel(
         name: 'Ejercicio',
@@ -183,13 +185,24 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
       _focusedDay.month + 1,
       0,
     ).day;
-    final double totalWidth =
+
+    final double screenWidth = MediaQuery.of(context).size.width;
+    // Calculate required width without detail column (32 is for screen padding 16*2)
+    final double baseWidthWithoutDetail =
         2.0 +
         _nameWidth +
         (daysInMonth * _dayWidth) +
         (_statWidth * 2) +
         _pctWidth +
-        _detailWidth;
+        32;
+
+    // Detail column grows to fill space, but at least 300px
+    final double currentDetailWidth =
+        (screenWidth > baseWidthWithoutDetail + _minDetailWidth)
+        ? screenWidth - baseWidthWithoutDetail
+        : _minDetailWidth;
+
+    final double totalWidth = baseWidthWithoutDetail - 32 + currentDetailWidth;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -200,6 +213,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Month Header with Navigation
                 Padding(
                   padding: const EdgeInsets.only(left: 8.0, bottom: 20),
                   child: Row(
@@ -258,6 +272,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                   ),
                 ),
 
+                // Scrollable Table
                 Expanded(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -265,12 +280,16 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                       width: totalWidth,
                       child: Column(
                         children: [
-                          _buildTableHeader(daysInMonth),
+                          _buildTableHeader(daysInMonth, currentDetailWidth),
                           Expanded(
                             child: ListView.builder(
                               itemCount: _habits.length,
                               itemBuilder: (context, index) {
-                                return _buildHabitRow(index, daysInMonth);
+                                return _buildHabitRow(
+                                  index,
+                                  daysInMonth,
+                                  currentDetailWidth,
+                                );
                               },
                             ),
                           ),
@@ -340,7 +359,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
     );
   }
 
-  Widget _buildTableHeader(int days) {
+  Widget _buildTableHeader(int days, double detailWidth) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: const BoxDecoration(
@@ -380,7 +399,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
           _buildHeaderColumn('X', _statWidth),
           _buildHeaderColumn('%', _pctWidth),
           SizedBox(
-            width: _detailWidth,
+            width: detailWidth,
             child: const Padding(
               padding: EdgeInsets.only(left: 16),
               child: Text(
@@ -414,7 +433,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
     );
   }
 
-  Widget _buildHabitRow(int habitIndex, int days) {
+  Widget _buildHabitRow(int habitIndex, int days, double detailWidth) {
     final habit = _habits[habitIndex];
     int success = habit.statuses.where((s) => s == HabitStatus.success).length;
     int failure = habit.statuses.where((s) => s == HabitStatus.failure).length;
@@ -463,7 +482,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       hintText: 'Hábito...',
                       hintStyle: TextStyle(color: Colors.white24, fontSize: 14),
                       border: InputBorder.none,
@@ -521,7 +540,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
             Colors.white,
           ),
           SizedBox(
-            width: _detailWidth,
+            width: detailWidth,
             child: Padding(
               padding: const EdgeInsets.only(left: 16),
               child: TextField(
@@ -529,7 +548,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                 onChanged: (val) => habit.detail = val,
                 enabled: !_isDeleteMode,
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'Detalle...',
                   hintStyle: TextStyle(color: Colors.white24, fontSize: 12),
                   border: InputBorder.none,
