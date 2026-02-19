@@ -23,7 +23,7 @@ class HabitTrackerScreen extends StatefulWidget {
 }
 
 class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
-  final DateTime _focusedDay = DateTime.now();
+  DateTime _focusedDay = DateTime.now();
   late List<HabitModel> _habits;
 
   // Column width constants
@@ -36,6 +36,10 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeHabits();
+  }
+
+  void _initializeHabits() {
     final int daysInMonth = DateTime(
       _focusedDay.year,
       _focusedDay.month + 1,
@@ -86,6 +90,13 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
     ];
   }
 
+  void _changeMonth(int offset) {
+    setState(() {
+      _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + offset);
+      _initializeHabits();
+    });
+  }
+
   void _onCellClick(int habitIndex, int dayIndex, bool isLeftClick) {
     setState(() {
       final statuses = _habits[habitIndex].statuses;
@@ -127,16 +138,42 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Month Header
+            // Month Header with Navigation
             Padding(
               padding: const EdgeInsets.only(left: 8.0, bottom: 20),
-              child: Text(
-                '$monthNum - $monthName',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => _changeMonth(-1),
+                    icon: const Icon(
+                      Icons.chevron_left,
+                      color: Colors.redAccent,
+                      size: 32,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$monthNum - $monthName',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => _changeMonth(1),
+                    icon: const Icon(
+                      Icons.chevron_right,
+                      color: Colors.redAccent,
+                      size: 32,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
               ),
             ),
 
@@ -268,6 +305,10 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
             ),
           ),
           ...List.generate(days, (dayIndex) {
+            // Guard against different month lengths when switching
+            if (dayIndex >= habit.statuses.length)
+              return const SizedBox.shrink();
+
             final status = habit.statuses[dayIndex];
             Color? bgColor;
             IconData? icon;
