@@ -3,6 +3,18 @@ import 'package:intl/intl.dart';
 
 enum HabitStatus { none, success, failure }
 
+class HabitModel {
+  final String name;
+  final String detail;
+  final List<HabitStatus> statuses;
+
+  HabitModel({
+    required this.name,
+    required this.detail,
+    required this.statuses,
+  });
+}
+
 class HabitTrackerScreen extends StatefulWidget {
   const HabitTrackerScreen({super.key});
 
@@ -12,7 +24,14 @@ class HabitTrackerScreen extends StatefulWidget {
 
 class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
   final DateTime _focusedDay = DateTime.now();
-  late List<HabitStatus> _dayStatuses;
+  late List<HabitModel> _habits;
+
+  // Column width constants
+  final double _nameWidth = 150.0;
+  final double _dayWidth = 22.0;
+  final double _statWidth = 40.0;
+  final double _pctWidth = 60.0;
+  final double _detailWidth = 300.0;
 
   @override
   void initState() {
@@ -22,23 +41,60 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
       _focusedDay.month + 1,
       0,
     ).day;
-    // Initialize with mock data for visualization
-    _dayStatuses = List.generate(daysInMonth, (index) {
-      if (index < 12) {
-        return index % 4 == 0 ? HabitStatus.failure : HabitStatus.success;
-      }
-      return HabitStatus.none;
-    });
+
+    _habits = [
+      HabitModel(
+        name: 'Ejercicio',
+        detail: 'Flexiones, Plancha, Sentadilla Dividida',
+        statuses: List.generate(
+          daysInMonth,
+          (index) => index < 10
+              ? (index % 3 == 0 ? HabitStatus.failure : HabitStatus.success)
+              : HabitStatus.none,
+        ),
+      ),
+      HabitModel(
+        name: 'Anki',
+        detail: '10 / 20 flashcards por día',
+        statuses: List.generate(
+          daysInMonth,
+          (index) => index < 15
+              ? (index % 5 == 0 ? HabitStatus.failure : HabitStatus.success)
+              : HabitStatus.none,
+        ),
+      ),
+      HabitModel(
+        name: 'Lectura',
+        detail: '1 Página de un libro / lectura extensa',
+        statuses: List.generate(
+          daysInMonth,
+          (index) => index < 12
+              ? (index % 4 == 0 ? HabitStatus.failure : HabitStatus.success)
+              : HabitStatus.none,
+        ),
+      ),
+      HabitModel(
+        name: 'Aimlab',
+        detail: 'Voltaic Valorant Benchmark',
+        statuses: List.generate(
+          daysInMonth,
+          (index) => index < 20
+              ? (index % 6 == 0 ? HabitStatus.failure : HabitStatus.success)
+              : HabitStatus.none,
+        ),
+      ),
+    ];
   }
 
-  void _onCellClick(int index, bool isLeftClick) {
+  void _onCellClick(int habitIndex, int dayIndex, bool isLeftClick) {
     setState(() {
+      final statuses = _habits[habitIndex].statuses;
       if (isLeftClick) {
-        _dayStatuses[index] = _dayStatuses[index] == HabitStatus.failure
+        statuses[dayIndex] = statuses[dayIndex] == HabitStatus.failure
             ? HabitStatus.none
             : HabitStatus.failure;
       } else {
-        _dayStatuses[index] = _dayStatuses[index] == HabitStatus.success
+        statuses[dayIndex] = statuses[dayIndex] == HabitStatus.success
             ? HabitStatus.none
             : HabitStatus.success;
       }
@@ -52,191 +108,58 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
       'es',
     ).format(_focusedDay).toUpperCase();
     final int monthNum = _focusedDay.month;
-    final int daysInMonth = _dayStatuses.length;
-
-    int successCount = _dayStatuses
-        .where((s) => s == HabitStatus.success)
-        .length;
-    int failureCount = _dayStatuses
-        .where((s) => s == HabitStatus.failure)
-        .length;
-    double percentage = (successCount + failureCount) == 0
-        ? 0
-        : (successCount / (successCount + failureCount)) * 100;
+    final int daysInMonth = DateTime(
+      _focusedDay.year,
+      _focusedDay.month + 1,
+      0,
+    ).day;
+    final double totalWidth =
+        _nameWidth +
+        (daysInMonth * _dayWidth) +
+        (_statWidth * 2) +
+        _pctWidth +
+        _detailWidth;
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SingleChildScrollView(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Habit Info Section
+            // Month Header
             Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '$monthNum - $monthName',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Ejercicio',
-                          style: TextStyle(
-                            color: Colors.pinkAccent,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Expanded(
-                    flex: 1,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'DETALLE',
-                          style: TextStyle(
-                            color: Colors.white54,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Flexiones Normales (1 aunque sea)\nPlancha (10sec aunque sea)\nSentadilla Dividida (1 aunque sea)',
-                          textAlign: TextAlign.right,
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              padding: const EdgeInsets.only(left: 8.0, bottom: 20),
+              child: Text(
+                '$monthNum - $monthName',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
 
-            const Divider(color: Colors.white10),
-
-            // Tracker Grid
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-                vertical: 16,
-              ),
-              child: Column(
-                children: [
-                  // Days Header
-                  Row(
-                    children: List.generate(daysInMonth, (index) {
-                      return Expanded(
-                        child: Center(
-                          child: Text(
-                            '${index + 1}',
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+            // Scrollable Table
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: totalWidth,
+                  child: Column(
+                    children: [
+                      _buildTableHeader(daysInMonth),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: _habits.length,
+                          itemBuilder: (context, index) {
+                            return _buildHabitRow(index, daysInMonth);
+                          },
                         ),
-                      );
-                    }),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  // Habit Marking Row
-                  Container(
-                    height: 60,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white10, width: 0.5),
-                    ),
-                    child: Row(
-                      children: List.generate(daysInMonth, (index) {
-                        final status = _dayStatuses[index];
-                        Color? bgColor;
-                        Widget? icon;
-
-                        if (status == HabitStatus.success) {
-                          bgColor = Colors.green.withValues(alpha: 0.2);
-                          icon = const Icon(
-                            Icons.check,
-                            color: Colors.greenAccent,
-                            size: 16,
-                          );
-                        } else if (status == HabitStatus.failure) {
-                          bgColor = Colors.red.withValues(alpha: 0.2);
-                          icon = const Icon(
-                            Icons.close,
-                            color: Colors.redAccent,
-                            size: 16,
-                          );
-                        }
-
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () =>
-                                _onCellClick(index, true), // Left Click
-                            onSecondaryTap: () =>
-                                _onCellClick(index, false), // Right Click
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: bgColor,
-                                border: Border(
-                                  left: index == 0
-                                      ? BorderSide.none
-                                      : const BorderSide(
-                                          color: Colors.white10,
-                                          width: 0.5,
-                                        ),
-                                ),
-                              ),
-                              child: icon != null ? Center(child: icon) : null,
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 40),
-
-            // Statistics Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Row(
-                children: [
-                  _buildStatCard(
-                    Icons.check,
-                    successCount.toString(),
-                    Colors.greenAccent,
-                  ),
-                  const SizedBox(width: 16),
-                  _buildStatCard(
-                    Icons.close,
-                    failureCount.toString(),
-                    Colors.redAccent,
-                  ),
-                  const SizedBox(width: 16),
-                  _buildStatCard(
-                    Icons.percent,
-                    percentage.toStringAsFixed(1),
-                    Colors.white,
-                  ),
-                ],
+                ),
               ),
             ),
           ],
@@ -245,26 +168,169 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
     );
   }
 
-  Widget _buildStatCard(IconData icon, String value, Color color) {
+  Widget _buildTableHeader(int days) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.white24, width: 1)),
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w300,
+          SizedBox(
+            width: _nameWidth,
+            child: const Text(
+              'HÁBITO',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          ...List.generate(
+            days,
+            (i) => SizedBox(
+              width: _dayWidth,
+              child: Center(
+                child: Text(
+                  '${i + 1}',
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _buildHeaderColumn('✓', _statWidth),
+          _buildHeaderColumn('X', _statWidth),
+          _buildHeaderColumn('%', _pctWidth),
+          SizedBox(
+            width: _detailWidth,
+            child: const Padding(
+              padding: EdgeInsets.only(left: 16),
+              child: Text(
+                'DETALLE',
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderColumn(String label, double width) {
+    return SizedBox(
+      width: width,
+      child: Center(
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white54,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHabitRow(int habitIndex, int days) {
+    final habit = _habits[habitIndex];
+    int success = habit.statuses.where((s) => s == HabitStatus.success).length;
+    int failure = habit.statuses.where((s) => s == HabitStatus.failure).length;
+    double percentage = (success + failure) == 0
+        ? 0
+        : (success / (success + failure)) * 100;
+
+    return Container(
+      height: 40,
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: _nameWidth,
+            child: Text(
+              habit.name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ...List.generate(days, (dayIndex) {
+            final status = habit.statuses[dayIndex];
+            Color? bgColor;
+            IconData? icon;
+            Color? iconColor;
+
+            if (status == HabitStatus.success) {
+              bgColor = Colors.green.withValues(alpha: 0.2);
+              icon = Icons.check;
+              iconColor = Colors.greenAccent;
+            } else if (status == HabitStatus.failure) {
+              bgColor = Colors.red.withValues(alpha: 0.2);
+              icon = Icons.close;
+              iconColor = Colors.redAccent;
+            }
+
+            return GestureDetector(
+              onTap: () => _onCellClick(habitIndex, dayIndex, true),
+              onSecondaryTap: () => _onCellClick(habitIndex, dayIndex, false),
+              child: Container(
+                width: _dayWidth,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  border: const Border(
+                    left: BorderSide(color: Colors.white10, width: 0.5),
+                  ),
+                ),
+                child: icon != null
+                    ? Center(child: Icon(icon, color: iconColor, size: 12))
+                    : null,
+              ),
+            );
+          }),
+          _buildStatValue(success.toString(), _statWidth, Colors.greenAccent),
+          _buildStatValue(failure.toString(), _statWidth, Colors.redAccent),
+          _buildStatValue(
+            '${percentage.toStringAsFixed(1)}%',
+            _pctWidth,
+            Colors.white,
+          ),
+          SizedBox(
+            width: _detailWidth,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Text(
+                habit.detail,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatValue(String value, double width, Color color) {
+    return Container(
+      width: width,
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: Colors.white10, width: 0.5)),
+      ),
+      child: Center(
+        child: Text(value, style: TextStyle(color: color, fontSize: 12)),
       ),
     );
   }
