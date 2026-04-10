@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:habits/features/calendar/presentation/screens/calendar_screen.dart';
-import 'package:habits/features/habits/presentation/screens/habit_tracker_screen.dart';
+import 'calendar.dart';
+import 'habits.dart';
 
 class MainHomeScreen extends StatefulWidget {
   const MainHomeScreen({super.key});
@@ -58,7 +58,7 @@ class _MainHomeScreenState extends State<MainHomeScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [CalendarScreen(), HabitTrackerScreen()],
+        children: [const CalendarScreen(), const HabitTrackerScreen()],
       ),
     );
   }

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../widgets/calendar_cell.dart';
-import '../widgets/weekday_label.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -225,6 +223,108 @@ class _CalendarScreenState extends State<CalendarScreen> {
       child: Padding(
         padding: const EdgeInsets.all(4.0),
         child: Icon(icon, color: color, size: 28),
+      ),
+    );
+  }
+}
+
+class CalendarCell extends StatelessWidget {
+  final int? day;
+  final bool isToday;
+  final List<Map<String, dynamic>> events;
+  final bool showTopBorder;
+  final bool isFirstOfMonth;
+
+  const CalendarCell({
+    super.key,
+    required this.day,
+    required this.isToday,
+    required this.events,
+    this.showTopBorder = false,
+    this.isFirstOfMonth = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          top: showTopBorder
+              ? const BorderSide(color: Colors.white10, width: 0.5)
+              : BorderSide.none,
+          bottom: const BorderSide(color: Colors.white10, width: 0.5),
+        ),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: day == null
+          ? const SizedBox.shrink()
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: isToday
+                      ? const BoxDecoration(
+                          color: Colors.pinkAccent,
+                          shape: BoxShape.circle,
+                        )
+                      : null,
+                  child: Text(
+                    '$day',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ...events.map(
+                  (e) => Container(
+                    margin: const EdgeInsets.only(bottom: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: e['color'],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      e['label'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class WeekdayLabel extends StatelessWidget {
+  final String label;
+  const WeekdayLabel(this.label, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:habits/core/database/app_database.dart';
+import 'database.dart';
 import 'package:drift/drift.dart' as drift;
 
 enum HabitStatus { none, success, failure }
@@ -94,9 +94,6 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
         ),
       );
     }
-
-    // If no habits and first load, maybe add default ones?
-    // The user didn't ask for it, so I'll leave it empty.
 
     if (mounted) {
       setState(() {
@@ -208,7 +205,6 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
     ).day;
 
     final double screenWidth = MediaQuery.of(context).size.width;
-    // Calculate required width without detail column (32 is for screen padding 16*2)
     final double baseWidthWithoutDetail =
         2.0 +
         _nameWidth +
@@ -217,7 +213,6 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
         _pctWidth +
         32;
 
-    // Detail column grows to fill space, but at least 300px
     final double currentDetailWidth =
         (screenWidth > baseWidthWithoutDetail + _minDetailWidth)
         ? screenWidth - baseWidthWithoutDetail
@@ -238,7 +233,6 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Month Header with Navigation
                       Padding(
                         padding: const EdgeInsets.only(left: 8.0, bottom: 20),
                         child: Row(
@@ -247,15 +241,14 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                               onPressed: () => _changeMonth(-1),
                               icon: const Icon(
                                 Icons.chevron_left,
-                                color: Colors.redAccent,
+                                color: Colors.pinkAccent,
                                 size: 32,
                               ),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                             ),
                             SizedBox(
-                              width:
-                                  320, // Fixed width to prevent buttons from moving
+                              width: 320,
                               child: Center(
                                 child: Text(
                                   '$monthNum - $monthName',
@@ -271,7 +264,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                               onPressed: () => _changeMonth(1),
                               icon: const Icon(
                                 Icons.chevron_right,
-                                color: Colors.redAccent,
+                                color: Colors.pinkAccent,
                                 size: 32,
                               ),
                               padding: EdgeInsets.zero,
@@ -300,8 +293,6 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                           ],
                         ),
                       ),
-
-                      // Scrollable Table
                       Expanded(
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
@@ -333,7 +324,6 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                     ],
                   ),
                 ),
-
                 Positioned(
                   bottom: 30,
                   right: 30,
@@ -399,7 +389,7 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
       ),
       child: Row(
         children: [
-          const SizedBox(width: 2), // Guard for border
+          const SizedBox(width: 2),
           SizedBox(
             width: _nameWidth,
             child: const Text(

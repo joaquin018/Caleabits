@@ -1,12 +1,12 @@
 import 'package:drift/drift.dart';
 import 'package:crdt/crdt.dart';
 import 'package:uuid/uuid.dart';
-import 'connection/connection.dart'
-    if (dart.library.js_interop) 'connection/web.dart'
-    if (dart.library.io) 'connection/native.dart'
+import 'database_connection.dart'
+    if (dart.library.js_interop) 'database_web.dart'
+    if (dart.library.io) 'database_native.dart'
     as impl;
 
-part 'app_database.g.dart';
+part 'database.g.dart';
 
 // Mixin to add CRDT columns to tables
 mixin CrdtColumns on Table {
@@ -37,7 +37,6 @@ class AppDatabase extends _$AppDatabase {
 
   static final AppDatabase instance = AppDatabase._();
 
-  // The HLC clock needs a unique node ID per device
   late Hlc _clock;
   final _uuid = const Uuid();
 
@@ -48,7 +47,7 @@ class AppDatabase extends _$AppDatabase {
   Hlc get hlc => _clock = _clock.increment();
 
   @override
-  int get schemaVersion => 2; // Incrementing version for the migration to UUID and CRDT
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -57,9 +56,6 @@ class AppDatabase extends _$AppDatabase {
     },
     onUpgrade: (m, from, to) async {
       if (from < 2) {
-        // Since we are changing primary keys from Int to String/UUID,
-        // the simplest "safe" way in development is to recreate tables.
-        // In a production app, we would write a migration script.
         for (final table in allTables) {
           await m.deleteTable(table.actualTableName);
           await m.createTable(table);
@@ -67,8 +63,6 @@ class AppDatabase extends _$AppDatabase {
       }
     },
   );
-
-  // --- Habits Operations ---
 
   Future<List<Habit>> getAllHabits() =>
       (select(habits)..where((t) => t.isDeleted.equals(false))).get();
@@ -92,8 +86,6 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  // --- Habit Entries Operations ---
-
   Future<List<HabitEntry>> getEntriesForHabit(String habitId) => (select(
     habitEntries,
   )..where((t) => t.habitId.equals(habitId) & t.isDeleted.equals(false))).get();
@@ -110,9 +102,6 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> upsertEntry(HabitEntriesCompanion entry) async {
-    // Generate an ID for the entry if it doesn't have one (habitId + date as unique legacy isn't enough with CRDT)
-    // Actually, in CRDT we usually want a stable ID for the entry.
-    // We'll use "habitId_date" as a deterministic ID to avoid duplicates of the same entry.
     final habitIdValue = entry.habitId.value;
     final dateValue = entry.date.value;
     final deterministicId =
@@ -125,8 +114,6 @@ class AppDatabase extends _$AppDatabase {
     );
     await into(habitEntries).insertOnConflictUpdate(companion);
   }
-
-  // --- Sync Operations ---
 
   Future<Map<String, dynamic>> exportSyncData() async {
     final allHabits = await select(habits).get();
@@ -141,8 +128,6 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> importSyncData(Map<String, dynamic> data) async {
     final remoteHlc = Hlc.parse(data['hlc'] as String);
-
-    // Update local clock with remote HLC to ensure causality
     _clock = _clock.merge(remoteHlc);
 
     final remoteHabits = (data['habits'] as List).cast<Map<String, dynamic>>();
@@ -152,7 +137,6 @@ class AppDatabase extends _$AppDatabase {
     await transaction(() async {
       for (final habitMap in remoteHabits) {
         final habit = Habit.fromJson(habitMap);
-        // CRDT logic: Only update if incoming HLC is newer than local
         final local = await (select(
           habits,
         )..where((t) => t.id.equals(habit.id))).getSingleOrNull();
