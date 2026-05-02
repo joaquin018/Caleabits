@@ -90,16 +90,7 @@ class AppDatabase extends _$AppDatabase {
     habitEntries,
   )..where((t) => t.habitId.equals(habitId) & t.isDeleted.equals(false))).get();
 
-  Stream<List<HabitEntry>> watchEntriesForMonth(DateTime month) {
-    final firstDay = DateTime(month.year, month.month, 1);
-    final lastDay = DateTime(month.year, month.month + 1, 0);
-    return (select(habitEntries)..where(
-          (t) =>
-              t.date.isBetweenValues(firstDay, lastDay) &
-              t.isDeleted.equals(false),
-        ))
-        .watch();
-  }
+
 
   Future<void> upsertEntry(HabitEntriesCompanion entry) async {
     final habitIdValue = entry.habitId.value;
