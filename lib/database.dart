@@ -1,10 +1,7 @@
 import 'package:drift/drift.dart';
+import 'package:drift_flutter/drift_flutter.dart';
 import 'package:crdt/crdt.dart';
 import 'package:uuid/uuid.dart';
-import 'database_connection.dart'
-    if (dart.library.js_interop) 'database_web.dart'
-    if (dart.library.io) 'database_native.dart'
-    as impl;
 
 part 'database.g.dart';
 
@@ -33,7 +30,7 @@ class HabitEntries extends Table with CrdtColumns {
 
 @DriftDatabase(tables: [Habits, HabitEntries])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase._() : super(_openConnection());
+  AppDatabase._() : super(driftDatabase(name: 'habits'));
 
   static final AppDatabase instance = AppDatabase._();
 
@@ -89,8 +86,6 @@ class AppDatabase extends _$AppDatabase {
   Future<List<HabitEntry>> getEntriesForHabit(String habitId) => (select(
     habitEntries,
   )..where((t) => t.habitId.equals(habitId) & t.isDeleted.equals(false))).get();
-
-
 
   Future<void> upsertEntry(HabitEntriesCompanion entry) async {
     final habitIdValue = entry.habitId.value;
@@ -149,8 +144,5 @@ class AppDatabase extends _$AppDatabase {
       }
     });
   }
-
-  static QueryExecutor _openConnection() {
-    return impl.openConnection();
-  }
 }
+
