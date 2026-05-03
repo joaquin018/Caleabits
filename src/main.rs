@@ -67,6 +67,18 @@ fn upsert_habit(state: State<AppState>, id: Option<String>, name: String, detail
 }
 
 #[tauri::command]
+fn delete_habit(state: State<AppState>, id: String) -> Result<(), String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    let hlc = format!("{}:0000:{}", Utc::now().timestamp_millis(), state.node_id);
+    
+    db.execute(
+        "UPDATE habits SET is_deleted = 1, hlc = ?1 WHERE id = ?2",
+        params![hlc, id],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 fn get_entries(state: State<AppState>, habit_id: String) -> Result<Vec<HabitEntry>, String> {
     let db = state.db.lock().map_err(|e| e.to_string())?;
     let mut stmt = db.prepare("SELECT id, habit_id, date, status, is_deleted, hlc FROM entries WHERE habit_id = ?1 AND is_deleted = 0").map_err(|e| e.to_string())?;
@@ -134,7 +146,7 @@ fn main() {
             db: Mutex::new(conn),
             node_id: Uuid::new_v4().to_string(),
         })
-        .invoke_handler(tauri::generate_handler![get_habits, upsert_habit, get_entries, upsert_entry])
+        .invoke_handler(tauri::generate_handler![get_habits, upsert_habit, get_entries, upsert_entry, delete_habit])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
