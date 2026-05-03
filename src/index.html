@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caleabits Tauri</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            background-color: black; 
+            color: white; 
+            font-family: sans-serif; 
+            user-select: none; /* Desactiva la selección de texto */
+        }
+        [contenteditable="true"] {
+            user-select: text; /* Permite la selección solo en campos editables */
+        }
+        .pink-accent { color: #FF4081; }
+        .bg-pink-accent { background-color: #FF4081; }
+        ::-webkit-scrollbar { height: 8px; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+    </style>
+</head>
+<body class="p-8">
+    <header class="flex items-center justify-center mb-8 gap-4">
+        <button onclick="changeMonth(-1)" class="pink-accent text-3xl font-bold">&lt;</button>
+        <h1 id="month-title" class="text-3xl font-bold min-w-[300px] text-center">MAYO</h1>
+        <button onclick="changeMonth(1)" class="pink-accent text-3xl font-bold">&gt;</button>
+    </header>
+
+    <div class="overflow-x-auto">
+        <table id="habits-table" class="w-full border-collapse">
+            <thead>
+                <tr id="header-row" class="text-gray-500 text-xs font-bold border-b border-white/10 uppercase">
+                    <!-- Contenido inyectado por JS -->
+                </tr>
+            </thead>
+            <tbody id="habits-body"></tbody>
+        </table>
+    </div>
+
+    <button onclick="addHabit()" class="fixed bottom-8 right-8 bg-pink-accent w-14 h-14 rounded-full text-white text-3xl shadow-lg">+</button>
+
+    <script>
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        const { invoke } = window.__TAURI__.core;
+        let focusedDay = new Date();
+        
+        async function loadHabits() {
+            const year = focusedDay.getFullYear();
+            const month = focusedDay.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            document.getElementById('month-title').innerText = `${month + 1} - ${focusedDay.toLocaleString('es', { month: 'long' }).toUpperCase()}`;
+            
+            const headerRow = document.getElementById('header-row');
+            let headerHtml = `<th class="p-2 text-left w-[150px]">Hábito</th>`;
+            for(let i=1; i<=daysInMonth; i++) {
+                headerHtml += `<th class="p-1 min-w-[25px] text-[10px] text-center">${i}</th>`;
+            }
+            headerHtml += `
+                <th class="p-2 min-w-[40px]">✓</th>
+                <th class="p-2 min-w-[40px]">X</th>
+                <th class="p-2 min-w-[60px]">%</th>
+                <th class="p-2 text-left">Detalle</th>
+            `;
+            headerRow.innerHTML = headerHtml;
+
+            const habits = await invoke('get_habits');
+            const body = document.getElementById('habits-body');
+            body.innerHTML = '';
+
+            for(const habit of habits) {
+                const entries = await invoke('get_entries', { habitId: habit.id });
+                const row = document.createElement('tr');
+                row.className = 'border-b border-white/5 h-10 hover:bg-white/5';
+                
+                let cellsHtml = `<td contenteditable="true" onblur="updateHabitName('${habit.id}', this.innerText)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}" class="p-2 text-sm font-semibold focus:outline-none focus:bg-white/10 rounded cursor-text">${habit.name}</td>`;
+                let success=0, failure=0;
+                
+                for(let i=1; i<=daysInMonth; i++) {
+                    const dateStr = `${year}-${(month+1).toString().padStart(2,'0')}-${i.toString().padStart(2,'0')}`;
+                    const entry = entries.find(e => e.date === dateStr);
+                    let bgColor = '';
+                    let icon = '';
+                    if(entry?.status === 1) { bgColor = 'bg-green-500/20'; icon = '✓'; success++; }
+                    else if(entry?.status === 2) { bgColor = 'bg-red-500/20'; icon = 'X'; failure++; }
+                    
+                    cellsHtml += `<td onclick="toggleStatus('${habit.id}', '${dateStr}', ${entry?.status || 0})" class="border-l border-white/10 w-[25px] text-center text-[10px] cursor-pointer ${bgColor}">${icon}</td>`;
+                }
+                
+                const pct = (success+failure) === 0 ? 0 : Math.round((success/(success+failure))*100);
+                
+                cellsHtml += `
+                    <td class="border-l border-white/10 text-center text-green-400 text-xs">${success}</td>
+                    <td class="border-l border-white/10 text-center text-red-400 text-xs">${failure}</td>
+                    <td class="border-l border-white/10 text-center text-xs">${pct}%</td>
+                    <td class="p-2 text-xs text-white/70 pl-4">${habit.detail || ''}</td>
+                `;
+                
+                row.innerHTML = cellsHtml;
+                body.appendChild(row);
+            }
+        }
+
+        async function updateHabitName(id, newName) {
+            await invoke('upsert_habit', { id, name: newName });
+            // No recargamos todo para que no se pierda el foco o la posición si estamos editando varios
+        }
+
+        async function addHabit() {
+            await invoke('upsert_habit', { name: 'NUEVO HÁBITO' });
+            loadHabits();
+        }
+
+        async function toggleStatus(habitId, date, currentStatus) {
+            const nextStatus = currentStatus === 1 ? 2 : (currentStatus === 2 ? 0 : 1);
+            await invoke('upsert_entry', { habitId, date, status: nextStatus });
+            loadHabits();
+        }
+
+        function changeMonth(offset) {
+            focusedDay.setMonth(focusedDay.getMonth() + offset);
+            loadHabits();
+        }
+
+        loadHabits();
+    </script>
+</body>
+</html>
